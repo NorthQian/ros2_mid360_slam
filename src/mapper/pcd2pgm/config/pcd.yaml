@@ -1,6 +1,6 @@
 /pcd2pgm:
   ros__parameters:
-    file_directory: /home/hsh/workspase/hsh_ws/hsh_ros2_humble_main/
+    file_directory: /home/nvidia/ros2_MID360_slam/maps/
     file_name: test
     flag_pass_through: false
     map_resolution: 0.05

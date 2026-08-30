@@ -2,6 +2,7 @@ import os
 import launch
 import launch_ros
 from ament_index_python.packages import get_package_share_directory
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 #因为
@@ -14,6 +15,7 @@ def generate_launch_description():
     nav2_param_path = launch.substitutions.LaunchConfiguration(
         'params_file',
         default=os.path.join(fishbot_navigation2_dir, 'config', 'nav2_params.yaml'))
+    rviz = launch.substitutions.LaunchConfiguration('rviz', default='true')
 
     return launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
@@ -26,6 +28,11 @@ def generate_launch_description():
             default_value=nav2_param_path,
             description='Full path to param file to load'
         ),
+        launch.actions.DeclareLaunchArgument(
+            'rviz',
+            default_value='true',
+            description='Launch rviz2 (set false on headless)'
+        ),
 
 
         launch.actions.IncludeLaunchDescription(
@@ -34,8 +41,8 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': use_sim_time,
                 'params_file': nav2_param_path,
-                'map': '',                  
-                'use_map_topic': 'true'     
+                'map': '',
+                'use_map_topic': 'true'
             }.items(),
         ),
 
@@ -45,7 +52,8 @@ def generate_launch_description():
             name='rviz2',
             arguments=['-d', rviz_config_dir],
             parameters=[{'use_sim_time': use_sim_time}],
-            output='screen'),
+            output='screen',
+            condition=IfCondition(rviz)),
     ])
 
 

@@ -11,11 +11,15 @@
 - ROS2：Humble
 - Livox SDK：`/usr/local/lib/liblivox_lidar_sdk_shared.so`（`livox_ros_driver2` 需要）
 - 其他依赖：PCL、Eigen、tf2（ROS Humble desktop 基本自带）
+- 建议禁用系统自带conda 如果使用系统自带conda进行了编译，那么需要删除build文件夹后再编译
 
 ```bash
 sudo apt install ros-humble-desktop ros-dev-tools
-```
+sudo apt install ros-humble-octomap ros-humble-octomap-msgs ros-humble-octomap-rviz-plugins
+sudo apt install ros-humble-pcl-ros
 
+```
+- 注意需要提前安装https://github.com/Livox-SDK/Livox-SDK2 否则colcon build会报错
 ---
 
 ## 二、编译前必改
@@ -28,7 +32,7 @@ sudo apt install ros-humble-desktop ros-dev-tools
 CMake Error: File .../livox_ros_driver2/package.xml does not exist.
 ```
 
-**解决**：编译前手动生成（根据 ROS2 版本复制）：
+**解决**：编译前手动生成（根据 ROS2 版本复制） 或者直接改个名字：
 
 ```bash
 cd src/driver/livox_ros_driver2
@@ -40,7 +44,7 @@ cp -r launch_ROS2 launch
 
 ## 三、编译
 
-在项目根目录（工作区根目录）执行：
+在项目根目录（工作区根目录）执行 注意直接运行colcon build有可能失败：
 
 ```bash
 ./build.sh

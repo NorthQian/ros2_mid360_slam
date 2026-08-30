@@ -114,7 +114,6 @@
 
 import rclpy
 import serial
-import struct
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 
@@ -125,8 +124,8 @@ class CmdVelSubscriber(Node):
         super().__init__('cmd_vel_subscriber')
 
         # 参数配置
-        self.declare_parameter('port', '/dev/ttyACM0')
-        self.declare_parameter('baudrate', 115200)
+        self.declare_parameter('port', '/dev/ttyAMA0')
+        self.declare_parameter('baudrate', 230400)
         self.declare_parameter('linear_scale', 1000.0)  
         self.declare_parameter('angular_scale', 1000.0)  
 
@@ -153,46 +152,33 @@ class CmdVelSubscriber(Node):
         self.get_logger().info("正在监听 /cmd_vel 话题...")
 
     def listener_callback(self, msg):
-        # # 提取线速度和角速度
-        # linear_x = msg.linear.x
-        # angular_z = msg.angular.z
+        # 全向麦轮协议（MCU case 0x07）：只下发行进速度 Vx/Vy，角速度 wz 忽略（MCU 端 Vw=0）
+        vx = int(round(msg.linear.x * self.linear_scale))
+        vy = int(round(msg.linear.y * self.linear_scale))
 
-        # 提取线速度和角速度
-        vx = msg.linear.x
-        wz = msg.angular.z
+        # 幅度限制在 uint8 范围
+        vx = max(min(vx, 0xFF), -0xFF)
+        vy = max(min(vy, 0xFF), -0xFF)
 
-        # 缩放并转换为整数（int16）
-        speed = int(vx * self.linear_scale)
-        angular = int(wz * self.angular_scale)
+        # 符号 + 幅度（单字节），0=正，1=负
+        vx_sign = 0 if vx >= 0 else 1
+        vy_sign = 0 if vy >= 0 else 1
 
-        # 限制在 int16 范围内 (-32768 ~ 32767)
-        speed = max(min(speed, 0x7FFF), -0x8000)
-        angular = max(min(angular, 0x7FFF), -0x8000)
-
-        # 转换为 2 字节（有符号，大端）
-        speed_bytes = struct.pack('>h', speed)  # > 表示大端，h 表示 int16
-        angular_bytes = struct.pack('>h', angular)
-
-        # 构造数据包
-        packet = bytes([
-            0xCC,
-            speed_bytes[0], speed_bytes[1],
-            angular_bytes[0], angular_bytes[1],
-            0xEE
+        # 帧：12 4C | 07 | 04 | vx_sign vx vy_sign vy | checksum
+        # checksum = buf[0..len-2] 累加和 mod 256
+        content = bytes([
+            0x12, 0x4C,   # 帧头
+            0x07,         # cmd_id
+            0x04,         # length = content 字节数
+            vx_sign, abs(vx), vy_sign, abs(vy),
         ])
+        checksum = sum(content) & 0xFF
+        packet = content + bytes([checksum])
 
         # 发送数据
         self.ser.write(packet)
         self.get_logger().debug(f'发送数据包: {packet.hex()}')
-        # try:
-        #     self.ser.write(packet)
-        #     self.get_logger().debug(f'发送数据包: {packet.hex()}')
-        # except Exception as e:
-        #     self.get_logger().error(f'串口写入失败: {e}')
-
-
-        # 打印出来
-        self.get_logger().info(f'接收到速度指令: 线速度 x={speed:.2f}, 角速度 z={angular:.2f}')
+        self.get_logger().info(f'下发速度: vx={vx}, vy={vy}')
 
 
 def main(args=None):

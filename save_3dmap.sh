@@ -1,13 +1,29 @@
+#!/bin/bash
+# 保存 3D 栅格地图 (OctoMap, .bt)
+# 用 octomap_server 的 octomap_saver_node，订阅 /octomap_full(由 octomap_server2 生成，
+# 需在建图时运行 octomap_server2)并写出 .bt 三维栅格文件。
 
-cmds=(  "ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=map.bt -p save_path:=/home/hsh/workspase/hsh_ws/hsh_ros2_humble_main")
+cd "$(dirname "$0")"
+source install/setup.bash
+export ROS_DOMAIN_ID=0
 
+# ===== 可修改项 =====
+SAVE_DIR="/home/nvidia/ros2_MID360_slam/maps"
+FILE="octomap.bt"          # 三维栅格文件名
+# ====================
 
+mkdir -p "$SAVE_DIR"
 
+# octomap_saver_node 来自 ros-humble-octomap-server 包
+if ! ros2 pkg list 2>/dev/null | grep -q "^octomap_server$"; then
+	echo "错误: 未安装 octomap_server 包。请执行: sudo apt install -y ros-humble-octomap-server"
+	exit 1
+fi
 
-for cmd in "${cmds[@]}"
-do
-	echo Current CMD : "$cmd"
-	gnome-terminal -- bash -c "cd $(pwd);source install/setup.bash;$cmd;exec bash;"
-	sleep 0.2 
-done
-
+echo "正在把 /octomap_full 保存为 $SAVE_DIR/$FILE ..."
+ros2 run octomap_server octomap_saver_node --ros-args \
+	-r /octomap_full:=/octomap_full \
+	-p octomap_path:="$SAVE_DIR/$FILE"
+echo
+echo "完成。产物:"
+echo "  $SAVE_DIR/$FILE"
