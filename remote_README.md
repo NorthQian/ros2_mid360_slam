@@ -111,6 +111,69 @@ rviz 中应看到：
 
 ---
 
+## 四、导航（Jetson 上，headless）
+
+先确认 `maps/test.pcd` 存在（建图后 `./save_pcd.sh` 生成），然后：
+
+```bash
+cd ~/ros2_MID360_slam
+./nav.sh
+```
+
+`nav.sh` 会**自动清理旧节点**并后台启动 8 个节点（日志 `log/nav_*.log`）。链路（作者原设计）：
+
+```
+livox驱动 → FAST-LIO(odom→base_link) → 串口底盘 → pointcloud_to_laserscan(2D扫描+base_link→livox_frame)
+         → pcd2pgm(读 maps/test.pcd 发静态 /map)   ← 静态已存地图, 不会重建
+         → icp_registration(定位, 发 map→odom)      ← 解决黑屏
+         → Nav2(use_map_topic:true 订阅 /map)
+```
+
+| 序号 | 节点 | 日志 |
+|------|------|------|
+| 1 | livox 驱动 | `log/nav_1.log` |
+| 2 | FAST-LIO | `log/nav_2.log` |
+| 3 | 串口底盘 | `log/nav_3.log` |
+| 4 | pointcloud_to_laserscan | `log/nav_4.log` |
+| 5 | octomap_server2（/projected_map） | `log/nav_5.log` |
+| 6 | **pcd2pgm（静态 /map）** | `log/nav_6.log` |
+| 7 | **icp_registration（定位 map→odom）** | `log/nav_7.log` |
+| 8 | Nav2 | `log/nav_8.log` |
+
+### 关键改动（相对作者原始配置，本 Jetson 上必需）
+
+**icp 定位的点云话题**：`src/registration/icp_registration/config/icp.yaml`
+```yaml
+pointcloud_topic: "/cloud_registered_body"   # 原为 /livox/lidar
+```
+原因：livox 驱动在 `/livox/lidar` 上虽然声明了 `sensor_msgs/PointCloud2`，但**实际订阅不到数据**（实测收 0 条），
+导致 icp 永远收不到点云、不配准、不发布 map→odom（rviz 黑屏）。改用 FAST-LIO 输出的
+`/cloud_registered_body`（base_link 帧的 PointCloud2，实测 ~5000 点/帧）。
+
+**Nav2 使用静态地图**：`src/navigation/robot_navigation2/launch/navigation2.launch.py`
+```python
+'map': '',
+'use_map_topic': 'true'     # 订阅 pcd2pgm 的 /map, 而非从文件加载
+```
+这样加载的是 `maps/test.pcd` 生成的静态 /map，**不会实时重建地图**。
+
+### 远程端 rviz 查看（你的电脑上）
+
+```bash
+source /opt/ros/<你的发行版>/setup.bash
+export ROS_DOMAIN_ID=0
+rviz2
+```
+在 rviz 中：
+- **Fixed Frame 设为 `map`**（已由 icp_registration 提供 map→odom TF）
+- 添加 **Map** 显示，话题 `/map` → 显示静态已存地图
+- 添加 **PointCloud2** 显示，话题 `/cloud_registered` → 实时点云（定位后的机器人）
+- 添加 **TF** 显示 → 看到 map→odom→base_link→livox_frame 链路
+
+若地图位置 / 朝向不对：编辑 `icp.yaml` 的 `initial_pose`（`[x,y,z,roll,pitch,yaw]`，相对地图原点）。
+
+---
+
 ## 环境速查
 
 | 项 | 值 |

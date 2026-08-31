@@ -1,8 +1,9 @@
 #!/bin/bash
 # 无头(Headless)启动导航链路
 # Jetson 无屏幕：所有节点后台运行，日志写入 log/。rviz 请在你自己的电脑上开。
-# 链路: 驱动 -> FAST-LIO(定位/里程计) -> 串口底盘 -> 点云转2D扫描 -> pcd2pgm(/map)
-#       -> ICP 配准 -> Nav2 导航(AMCL定位 + 规划 + 控制)
+# 链路(作者原设计): 驱动 -> FAST-LIO(odom->base_link) -> 串口底盘 -> 点云转2D扫描
+#       -> pcd2pgm(读 maps/test.pcd 发静态 /map, transient_local)
+#       -> ICP 配准(定位, 发 map->odom) -> Nav2(use_map_topic:true 订阅 /map)
 
 cd "$(dirname "$0")"
 source install/setup.bash
@@ -30,7 +31,8 @@ cmds=(
 	"ros2 launch fast_lio mapping.launch.py rviz:=false"
 	"ros2 launch serial_node serial_comm.launch.py"
 	"ros2 launch pointcloud_to_laserscan pointcloud_to_laserscan_launch.py"
-	"ros2 launch pcd2pgm pcd2pgm.launch.py"
+	"ros2 launch octomap_server2 octomap_server_launch.py incremental_2D_projection:=true"
+	"ros2 launch pcd2pgm pcd2pgm.launch.py use_sim_time:=false"
 	"ros2 launch icp_registration icp.launch.py"
 	"ros2 launch robot_navigation2 navigation2.launch.py rviz:=false"
 )
