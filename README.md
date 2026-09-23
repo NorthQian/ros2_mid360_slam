@@ -83,8 +83,10 @@ registration:    定位算法
 ```
 pcd_save_en: true
 dense_publish_en: false
-map_file_path: "./test.pcd"
-map_file_path 中 test 可以更换其他名字，路径也可以更改，当前默认保存在ws目录中
+map_file_path: "maps/test.pcd"
+建图产物统一保存在工作空间根目录的 maps/ 下，路径由 mapping.launch.py 按工作空间位置
+自动推导，搬到别的目录也不用改；上面这行只是直接用 ros2 run 启动时的兜底值。
+想换文件名，改 mapping.launch.py 里拼路径那行的 test.pcd。
 ```
 
 
@@ -119,11 +121,11 @@ map_file_path 中 test 可以更换其他名字，路径也可以更改，当前
 
 `./nav1.sh`
 
-执行完3.1建图后，在ws目录下会出现一个test.pcd文件，可以通过在当前目录打开终端
+执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端
 
 执行:
 
-`pcl_viewer test.pcd`
+`pcl_viewer maps/test.pcd`
 
 查看点云情况,确认点云无误后
 
@@ -132,10 +134,10 @@ map_file_path 中 test 可以更换其他名字，路径也可以更改，当前
 设置：
 
 ```
-file_directory: /home/hsh/workspase/hsh_ws/ros2_humble_main/        #路径为刚刚的pcd文件目录
-file_name: test                                                     #文件名
-thre_z_max: 0.35                                                    #机器人最大高度
-thre_z_min: -0.04                                                   #需求点云最低高度
+file_directory: maps/        #兜底值，pcd2pgm.launch.py 会自动填成 <工作空间>/maps/，末尾斜杠不可少
+file_name: test              #文件名
+thre_z_max: 0.35             #机器人最大高度
+thre_z_min: -0.04            #需求点云最低高度
 ```
 
 
@@ -164,7 +166,7 @@ thre_z_min: -0.04                                                   #需求点�
 设置:
 
 ```
-pcd_path: "/home/hsh/workspase/hsh_ws/ros2_humble_main/test.pcd"    #与之前保存的test.pcd路径一致
+pcd_path: "maps/test.pcd"    #兜底值，icp.launch.py 会自动填成 <工作空间>/maps/test.pcd
 map_frame_id: "map"
 odom_frame_id: "odom"
 laser_frame_id: "base_link"

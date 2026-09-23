@@ -22,7 +22,7 @@ Jetson (192.168.5.27, 无屏幕)            你的电脑 (192.168.5.14, 有屏�
 ## 一、启动建图（Jetson 上）
 
 ```bash
-cd ~/ros2_MID360_slam
+cd ~/ros2_mid360_slam
 ./mapping.sh
 ```
 
@@ -57,7 +57,7 @@ pkill -f 'ros2 launch'
 **1. 拷贝 rviz 配置文件**（只需拷一次）：
 
 ```bash
-scp nvidia@192.168.5.27:~/ros2_MID360_slam/src/lio/FAST_LIO/rviz/fastlio.rviz ~/ros2_mid360/
+scp nvidia@192.168.5.27:~/ros2_mid360_slam/src/lio/FAST_LIO/rviz/fastlio.rviz ~/ros2_mid360/
 ```
 
 **2. 启动 rviz：**
@@ -116,7 +116,7 @@ rviz 中应看到：
 先确认 `maps/test.pcd` 存在（建图后 `./save_pcd.sh` 生成），然后：
 
 ```bash
-cd ~/ros2_MID360_slam
+cd ~/ros2_mid360_slam
 ./nav.sh
 ```
 
@@ -179,7 +179,7 @@ rviz2
 | 项 | 值 |
 |----|----|
 | Jetson IP | 192.168.5.27 |
-| 工作目录（Jetson） | `~/ros2_MID360_slam` |
+| 工作目录（Jetson） | `~/ros2_mid360_slam` |
 | rviz 配置 | `src/lio/FAST_LIO/rviz/fastlio.rviz` |
 | MID360 配置 | `src/lio/FAST_LIO/config/mid360.yaml` |
 | ROS_DOMAIN_ID | 0 |

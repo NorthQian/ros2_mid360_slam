@@ -7,7 +7,9 @@
         filter_size_map: 0.5
         cube_side_length: 1000.0
         runtime_pos_log_enable: false
-        map_file_path: "/home/nvidia/ros2_MID360_slam/maps/test.pcd"
+        # 实际路径由 mapping.launch.py 自动填成 <工作空间>/maps/test.pcd。
+        # 这里的值只在使用 ros2 run 直连时作为兜底。
+        map_file_path: "maps/test.pcd"
 
         common:
             lid_topic:  "/livox/lidar"

@@ -9,7 +9,8 @@ export ROS_DOMAIN_ID=0
 
 # ===== 可修改项 =====
 TOPIC="/projected_map"                              # 2D 栅格话题(octomap 的 projected_map)
-OUT="/home/nvidia/ros2_MID360_slam/maps/map"        # 保存前缀(自动生成 map.pgm / map.yaml)
+# 脚本开头已 cd 到仓库根目录，地图统一放根目录下的 maps/
+OUT="$(pwd)/maps/map"                               # 保存前缀(自动生成 map.pgm / map.yaml)
 # ====================
 
 mkdir -p "$(dirname "$OUT")"

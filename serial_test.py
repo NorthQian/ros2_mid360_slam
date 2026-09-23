@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-直接串口测试脚本 —— 不启动 ROS 节点，直接按 MCU case 0x07 协议向 /dev/ttyAMA0 发帧。
+直接串口测试脚本 —— 不启动 ROS 节点，直接按 MCU case 0x07 协议向 /dev/ttyACM0 发帧。
 
 帧格式（9 字节）:
     12 4C | 07 | 04 | <vx_sign> <vx> <vy_sign> <vy> | <checksum>
@@ -18,9 +18,8 @@ import serial
 import sys
 import time
 
-#PORT = '/dev/ttyAMA0'
+PORT = '/dev/ttyACM0'
 BAUD = 230400
-PORT = '/dev/ttyTHS1'
 
 def build_frame(vx: int, vy: int) -> bytes:
     """构造 case 0x07 速度帧。"""

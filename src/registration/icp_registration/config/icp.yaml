@@ -3,7 +3,9 @@
     use_sim_time: false 
     rough_leaf_size: 0.4
     refine_leaf_size: 0.1
-    pcd_path: "/home/nvidia/ros2_MID360_slam/maps/test.pcd"
+    # 实际路径由 icp.launch.py 自动填成 <工作空间>/maps/test.pcd。
+    # 这里的值只在使用 ros2 run 直连时作为兜底。
+    pcd_path: "maps/test.pcd"
     map_frame_id: "map"
     odom_frame_id: "odom"
     laser_frame_id: "base_link"

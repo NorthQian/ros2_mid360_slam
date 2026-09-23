@@ -10,6 +10,13 @@ from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 
+def maps_dir(pkg_name):
+    # install/<pkg>/share/<pkg> 往上 4 层即工作空间根目录，地图统一放在 <ws>/maps/
+    share = get_package_share_directory(pkg_name)
+    ws_root = os.path.abspath(os.path.join(share, '..', '..', '..', '..'))
+    return os.path.join(ws_root, 'maps')
+
+
 def generate_launch_description():
     package_path = get_package_share_directory('fast_lio')
     default_config_path = os.path.join(package_path, 'config')
@@ -47,6 +54,8 @@ def generate_launch_description():
         package='fast_lio',
         executable='fastlio_mapping',
         parameters=[PathJoinSubstitution([config_path, config_file]),
+                    # 覆盖 yaml 里的兜底值，存图固定落到 <工作空间>/maps/test.pcd
+                    {'map_file_path': os.path.join(maps_dir('fast_lio'), 'test.pcd')},
                     {'use_sim_time': use_sim_time}],
         output='screen'
     )

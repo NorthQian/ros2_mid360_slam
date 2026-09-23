@@ -8,7 +8,7 @@ def generate_launch_description():
             executable='serial_twist_publisher',
             name='serial_twist_publisher',
             parameters=[
-                {'port': '/dev/ttyTHS1'},
+                {'port': '/dev/ttyACM0'},
                 {'baudrate': 230400},
                 {'linear_scale': 5000.0},     
                 {'angular_scale': 500.0},   

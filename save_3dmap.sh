@@ -8,7 +8,8 @@ source install/setup.bash
 export ROS_DOMAIN_ID=0
 
 # ===== 可修改项 =====
-SAVE_DIR="/home/nvidia/ros2_MID360_slam/maps"
+# 脚本开头已 cd 到仓库根目录，地图统一放根目录下的 maps/
+SAVE_DIR="$(pwd)/maps"
 FILE="octomap.bt"          # 三维栅格文件名
 # ====================
 

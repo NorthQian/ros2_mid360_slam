@@ -7,7 +7,8 @@ cd "$(dirname "$0")"
 source install/setup.bash
 export ROS_DOMAIN_ID=0
 
-MAP_PATH="/home/nvidia/ros2_MID360_slam/maps/test.pcd"
+# 脚本开头已 cd 到仓库根目录，地图统一放根目录下的 maps/
+MAP_PATH="$(pwd)/maps/test.pcd"
 
 echo "正在请求 FAST-LIO 保存点云地图..."
 ros2 service call /map_save std_srvs/srv/Trigger {}

@@ -179,7 +179,7 @@ ros2 topic info /livox/lidar      # Type 应只有 CustomMsg 一种
 
 ### 3. 建图完成后
 
-1. fast_lio 走一圈后 `Ctrl+C`，地图存到 `src/lio/FAST_LIO/PCD/`；
+1. fast_lio 走一圈后 `Ctrl+C`，或运行 `./save_pcd.sh`，地图存到工作空间根目录的 `maps/test.pcd`（路径由 `mapping.launch.py` 自动推导）；
 2. 用 `pcd2pgm` 把 `.pcd` 转 2D 栅格地图；
 3. 配合 `pointcloud_to_laserscan` + `icp_registration` + `nav2` 做导航。
 

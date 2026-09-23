@@ -124,7 +124,7 @@ class CmdVelSubscriber(Node):
         super().__init__('cmd_vel_subscriber')
 
         # 参数配置
-        self.declare_parameter('port', '/dev/ttyTHS1')
+        self.declare_parameter('port', '/dev/ttyACM0')
         self.declare_parameter('baudrate', 230400)
         self.declare_parameter('linear_scale', 1000.0)  
         self.declare_parameter('angular_scale', 1000.0)  

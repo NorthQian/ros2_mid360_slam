@@ -1,6 +1,9 @@
 /pcd2pgm:
   ros__parameters:
-    file_directory: /home/nvidia/ros2_MID360_slam/maps/
+    # 实际路径由 pcd2pgm.launch.py 自动填成 <工作空间>/maps/。
+    # 末尾分隔符不能少：节点内部是 file_directory + file_name + ".pcd" 直接拼接。
+    # 这里的值只在使用 ros2 run pcd2pgm pcd2pgm_node 直连时作为兜底。
+    file_directory: maps/
     file_name: test
     flag_pass_through: false
     map_resolution: 0.05
