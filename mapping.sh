@@ -22,7 +22,7 @@ LOG_DIR="$(pwd)/log"
 mkdir -p "$LOG_DIR"
 
 cmds=(  "ros2 launch livox_ros_driver2 msg_MID360_launch.py"
-        "ros2 launch fast_lio mapping.launch.py rviz:=false"
+        "ros2 launch fast_lio mapping.launch.py rviz:=true"
         "ros2 launch octomap_server2 octomap_server_launch.py incremental_2D_projection:=true"
      )
 

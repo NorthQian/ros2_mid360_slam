@@ -92,6 +92,22 @@ map_file_path: "maps/test.pcd"
 
 3.2 -- 保存地图
 
+**三个保存命令都要执行，缺一不可。** 它们保存的是三种不同格式的地图产物，
+分别供后续不同环节使用，互相不能替代：
+
+| 命令 | 产物 | 格式 | 后续用途 |
+|------|------|------|----------|
+| `./save_pcd.sh` | `maps/test.pcd` | 3D 点云 | 导航时 `pcd2pgm` 与 `icp_registration` 的输入 |
+| `./save_2dmap.sh` | `maps/map.pgm` + `maps/map.yaml` | 2D 栅格 | rviz / Nav2 加载的二维地图 |
+| `./save_3dmap.sh` | `maps/octomap.bt` | 3D 栅格 | 三维占据栅格存档 |
+
+**必须都建图节点（`./mapping.sh`）运行期间执行。** 保存靠的是向运行中的节点发服务调用、
+或订阅其实时发布的话题，建图停掉后就取不到数据了。建议走完一圈建图后，按
+**pcd → 2dmap → 3dmap** 的顺序依次执行。
+
+依赖：`save_3dmap.sh` 需要先装 `sudo apt install -y ros-humble-octomap-server`
+（`save_2dmap.sh` 依赖的 `nav2_map_server` 一般随 nav2 自带）。
+
 命令:
 
 `./save_pcd.sh`
@@ -119,7 +135,7 @@ map_file_path: "maps/test.pcd"
 
 命令：
 
-`./nav1.sh`
+`./nav.sh`
 
 执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端
 

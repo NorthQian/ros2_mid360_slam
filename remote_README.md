@@ -103,10 +103,15 @@ rviz 中应看到：
 | `./save_2dmap.sh` | `maps/map.pgm + map.yaml`（2D 栅格） | 用 `nav2_map_server map_saver_cli` 订阅 `/projected_map`；话题/路径在脚本顶部可改 |
 | `./save_3dmap.sh` | `maps/octomap.bt`（3D 栅格） | 用 `octomap_server octomap_saver_node` 订阅 `/octomap_full`；路径在脚本顶部可改 |
 
+**三个脚本都要跑一遍，缺一不可** —— 三种格式各有用途，互相不能替代，
+建议按 **pcd → 2dmap → 3dmap** 的顺序依次执行。
+
 **注意**：
+- 各脚本**必须在建图节点（`./mapping.sh`）运行期间执行**：`save_pcd.sh` 是向
+  FAST-LIO 发 `/map_save` 服务调用，另外两个是订阅 octomap 实时发布的话题，
+  建图停掉后就取不到数据了。
 - `save_2dmap.sh` 依赖 `nav2_map_server`（已装）；`save_3dmap.sh` 依赖 `octomap_server` 包，
   需先执行：`sudo apt install -y ros-humble-octomap-server`。
-- 各脚本需在建图节点运行期间执行。
 - 查看 2D 图：直接 `eog maps/map.pgm`，或在 rviz / Nav2 里加载 `maps/map.yaml`。
 
 ---

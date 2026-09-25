@@ -28,13 +28,13 @@ mkdir -p "$LOG_DIR"
 
 cmds=(
 	"ros2 launch livox_ros_driver2 msg_MID360_launch.py"
-	"ros2 launch fast_lio mapping.launch.py rviz:=false"
+	"ros2 launch fast_lio mapping.launch.py rviz:=true"
 	"ros2 launch serial_node serial_comm.launch.py"
 	"ros2 launch pointcloud_to_laserscan pointcloud_to_laserscan_launch.py"
 	"ros2 launch octomap_server2 octomap_server_launch.py incremental_2D_projection:=true"
 	"ros2 launch pcd2pgm pcd2pgm.launch.py use_sim_time:=false"
 	"ros2 launch icp_registration icp.launch.py"
-	"ros2 launch robot_navigation2 navigation2.launch.py rviz:=false"
+	"ros2 launch robot_navigation2 navigation2.launch.py rviz:=true"
 )
 
 PIDS=()
