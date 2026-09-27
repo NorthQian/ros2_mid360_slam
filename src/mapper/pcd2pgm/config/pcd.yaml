@@ -9,7 +9,15 @@
     map_resolution: 0.05
     map_topic_name: map
     thre_radius: 0.5
+    # z 的基准是建图起始时 FAST-LIO 的位姿原点(IMU)，不是地面 —— 所以地面在 z≈-0.36
+    # 而不是 0。实测 maps/test.pcd：934 个 0.5m 网格里有 237 个的 min-z 落在
+    # -0.39~-0.33；天花板尖峰在 +2.25(反推层高 2.61m)可交叉验证这个基准。
+    # 于是这两个值 = 离地 [0.11m, 0.71m] 的高度带：
+    #   thre_z_min = -0.25 → 地面往上 11cm，地面残点被切掉，不会糊成实心块
+    #   thre_z_max = 0.35 → 只保留 71cm 以下的障碍(墙在，高家具被截顶)
+    # 宁可偏高不可偏低：调太低会把地面残留切进地图，投影成一大坨(不可逆)；
+    # 调太高只是丢掉矮障碍(可恢复)。
     thre_z_max: 0.35
-    thre_z_min: -0.04
+    thre_z_min: -0.25
     thres_point_count: 10
     use_sim_time: false

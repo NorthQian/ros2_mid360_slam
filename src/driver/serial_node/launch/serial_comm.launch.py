@@ -10,8 +10,10 @@ def generate_launch_description():
             parameters=[
                 {'port': '/dev/ttyACM0'},
                 {'baudrate': 230400},
-                {'linear_scale': 5000.0},     
-                {'angular_scale': 500.0},   
+                {'linear_scale': 5000.0},
+                {'angular_scale': 500.0},
+                # 速度太快就调小这个：0.5 = 半速，0.3 = 三成速度
+                {'speed_scale': 0.5},
             ],
             output='screen'
         )

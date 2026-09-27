@@ -29,7 +29,15 @@ def generate_launch_description():
             parameters=[{
                 'target_frame': 'livox_frame',  # 坐标系要与 TF 匹配
                 'transform_tolerance': 0.01,
-                'min_height': -0.09,  # 可根据实际调整
+                # z 基准是 livox_frame(雷达原点)，它比 PCD/odom 系(建图起始的 IMU 原点)
+                # 高 4.412cm，所以同一个物理点在 livox_frame 里 z 更小(更负)：
+                #   MID360 手册：IMU 芯片在点云坐标系下 z = -44.12mm(IMU 在雷达下方)
+                #   FAST_LIO mid360.yaml: extrinsic_T = Lidar_T_wrt_IMU，z = +0.04412
+                #   —— 两种写法是同一件事，互相印证。
+                # 地面在 PCD/IMU 系里 ≈ -0.36，故在 livox_frame 里 = -0.36 - 0.044 = -0.404。
+                # 取离地 11cm ⇒ -0.404 + 0.11 = -0.29。
+                # (pcd2pgm 的 thre_z_min = -0.25 基准是 IMU，同一物理高度带，数值差 4.4cm。)
+                'min_height': -0.29,
                 'max_height': 0.35,
                 'angle_min': -3.14159,
                 'angle_max': 3.14159,

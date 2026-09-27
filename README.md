@@ -152,9 +152,14 @@ map_file_path: "maps/test.pcd"
 ```
 file_directory: maps/        #兜底值，pcd2pgm.launch.py 会自动填成 <工作空间>/maps/，末尾斜杠不可少
 file_name: test              #文件名
-thre_z_max: 0.35             #机器人最大高度
-thre_z_min: -0.04            #需求点云最低高度
+thre_z_max: 0.35             #高度带上沿：离地 0.71m
+thre_z_min: -0.25            #高度带下沿：离地 0.11m
 ```
+
+**这两个值不是随手填的，基准也不是地面。** PCD 的 z=0 是建图起始时 FAST-LIO 的位姿原点
+（IMU），地面在 z≈-0.36。用 `pcl_viewer` 或脚本量一下自己地图的地面 z，再往上加你想要的
+离地高度，就是 `thre_z_min`。宁可偏高不可偏低：偏低会把地面残留切进地图，投影成一大坨实心块；
+偏高只是丢掉矮障碍。详见 `pcd.yaml` 里的注释。
 
 
 打开 mapper/pointcloud_to_laserscan/launch/pointcloud_to_laserscan_launch.py
@@ -162,9 +167,13 @@ thre_z_min: -0.04            #需求点云最低高度
 设置：
 
 ```
-'min_height': -0.09,     # 与thre_z_min 一致
+'min_height': -0.29,     # 离地 0.11m，与 thre_z_min 物理高度带一致
 'max_height': 0.35,      # 与thre_z_max 一致
 ```
+
+注意数值和 `thre_z_min`(-0.25)**不相等**，别以为写错了：这里的 z 基准是 `livox_frame`
+（雷达原点），`pcd2pgm` 那边的基准是 IMU，而**雷达原点比 IMU 高 4.412cm**（MID360 手册：
+IMU 在点云坐标系下 z=-44.12mm），所以同一个物理高度带在 `livox_frame` 里数值要更负 4.4cm。
 
 
 打开 driver/serial_node/launch/serial_comm.launch.py
@@ -215,5 +224,10 @@ DeclareLaunchArgument('pointcloud_min_height', default_value='-0.12'),    #机�
 DeclareLaunchArgument('pointcloud_max_height', default_value='0.35'),    #机器人低高度 单位m
 ```
 
-这两句按照实际情况更改，与上述的与thre_z_max、与thre_z_min保持一致
+这两句按照实际情况更改。它们的 z 基准是 `frame_id`（默认 `odom`，和 PCD 一样是建图起始的
+IMU 原点），所以参数值应当和 **`thre_z_min`(-0.25) 同一个基准**，而不是和
+`pointcloud_to_laserscan` 的 `min_height`(-0.21) 一致 —— 后者基准是 `livox_frame`，差 4.4cm。
+
+两者的用途也不同，不必强行取同一个值：`pcd2pgm` 是投成二维栅格（投影后地面残点会糊成实心块，
+所以地面必须切干净），`octomap` 是三维栅格（切掉地面是为了不把地面标成占据）。
 
