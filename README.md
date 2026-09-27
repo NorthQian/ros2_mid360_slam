@@ -89,6 +89,7 @@ map_file_path: "maps/test.pcd"
 想换文件名，改 mapping.launch.py 里拼路径那行的 test.pcd。
 ```
 
+这里配合底盘使用，需要摁一下lcd屏幕上的按钮，将底盘切换到遥控模式，此时可以用遥控器控制车辆在室内走几圈
 
 3.2 -- 保存地图
 
@@ -138,6 +139,8 @@ map_file_path: "maps/test.pcd"
 `./nav.sh`
 
 执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端
+注意，每次启动都要先进行2d pose estimate，大概车在哪个位置，单击后绿色箭头指向MID-360的镭射面
+随后可以进行nav2 goal设定目标地点 这里也可以通过箭头指向最终要朝向的方向
 
 执行:
 
