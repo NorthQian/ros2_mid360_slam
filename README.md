@@ -150,7 +150,7 @@ thre_z_min: -0.25            #高度带下沿：离地 0.11m
 {'angular_scale': 500.0},   # 转向速度倍率
 ```
 
-![image-20260927203417255](/home/orangepi/ros2_mid360_slam/mid-360-config.png)
+![image-20260927203417255](./mid-360-config.png)
 
 
 
