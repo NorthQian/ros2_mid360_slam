@@ -5,33 +5,29 @@
 
 #### 环境说明
 ros2 版本：  **humble**
- 
+
 
 #### 使用说明
  **1、功能包说明**  
 driver:  设备资源处理
 
     livox_ros_driver2 --- 获取mid360雷达点云
-
+    
     serial_node --- 底盘串口通信
-
-
 
 lio：    建图算法
 
     FAST_LIO --- fast_lio建图
-
+    
     point_lio --- point_lio建图(无法使用)
-
-
 
 
 mapper:  二维、三维栅格建图以及点云处理
 
     octomap_server2 --- 在/octomap_full、/octomap_binary上发布三维栅格图，同时在/project_map上发布二维栅格图
-
+    
     pcd2pgm --- 用于读取点云的pcd文件，并在/map上发布二维的栅格图
-
+    
     pointcloud_to_laserscan --- 将mid360的点云数据转换成的激光雷达数据，用于导航
 
 
@@ -47,10 +43,8 @@ navigation：导航包以及导航相关算法
 registration:    定位算法
 
     amcl_registration --- 使用amcl进行定位
-
+    
     icp_registration  --- 使用icp进行定位
-
-
 
 
  **2、编译** 
@@ -71,13 +65,12 @@ registration:    定位算法
 
 3.1 -- 建图
 
-命令：
+- 命令：`./mapping.sh`
 
-`./mapping.sh`
+- 在建图前，先配置将mid360的ip配置一下，网上有教程，目录在`driver/livox_ros_driver2/config/MID360_config.json`,
 
-在建图前，先配置将mid360的ip配置一下，网上有教程，目录在driver/livox_ros_driver2/config/MID360_config.json,
+- 然后再前往`lio/FAST_LIO/config/mid360.yaml`中，检查是否满足以下情况
 
-然后再前往lio/FAST_LIO/config/mid360.yaml中，检查是否满足以下情况
 
 
 ```
@@ -89,12 +82,12 @@ map_file_path: "maps/test.pcd"
 想换文件名，改 mapping.launch.py 里拼路径那行的 test.pcd。
 ```
 
-这里配合底盘使用，需要摁一下lcd屏幕上的按钮，将底盘切换到遥控模式，此时可以用遥控器控制车辆在室内走几圈
+- 这里配合底盘使用，需要摁一下lcd屏幕上的按钮，将底盘切换到遥控模式，此时可以用遥控器控制车辆在室内走几圈
+
 
 3.2 -- 保存地图
 
-**三个保存命令都要执行，缺一不可。** 它们保存的是三种不同格式的地图产物，
-分别供后续不同环节使用，互相不能替代：
+- **三个保存命令都要执行，缺一不可。** 它们保存的是三种不同格式的地图产物，分别供后续不同环节使用，互相不能替代：
 
 | 命令 | 产物 | 格式 | 后续用途 |
 |------|------|------|----------|
@@ -102,35 +95,15 @@ map_file_path: "maps/test.pcd"
 | `./save_2dmap.sh` | `maps/map.pgm` + `maps/map.yaml` | 2D 栅格 | rviz / Nav2 加载的二维地图 |
 | `./save_3dmap.sh` | `maps/octomap.bt` | 3D 栅格 | 三维占据栅格存档 |
 
-**必须都建图节点（`./mapping.sh`）运行期间执行。** 保存靠的是向运行中的节点发服务调用、
-或订阅其实时发布的话题，建图停掉后就取不到数据了。建议走完一圈建图后，按
-**pcd → 2dmap → 3dmap** 的顺序依次执行。
+- **必须都建图节点（`./mapping.sh`）运行期间执行。** 保存靠的是向运行中的节点发服务调用、
+  或订阅其实时发布的话题，建图停掉后就取不到数据了。建议走完一圈建图后，按
+  **pcd → 2dmap → 3dmap** 的顺序依次执行。
 
-依赖：`save_3dmap.sh` 需要先装 `sudo apt install -y ros-humble-octomap-server`
-（`save_2dmap.sh` 依赖的 `nav2_map_server` 一般随 nav2 自带）。
-
-命令:
-
-`./save_pcd.sh`
-
-保存pcd文件，执行的是fast_lio自带的保存方法，路径也是fast_lio的保存路径
-
-
-命令:
-
-`./save_2dmap.sh`
-
-保存pgm文件，保存路径以及保存topic均要在该文件中修改
-
-
-命令：
-
-`./save_3dmap.sh`
-
-保存bt或者ot文件，该命令只能保存octomap生成的三维栅格图，同样需要在命令文件中修改保存路径
-
-
-
+- 依赖：`save_3dmap.sh` 需要先装 `sudo apt install -y ros-humble-octomap-server`
+  （`save_2dmap.sh` 依赖的 `nav2_map_server` 一般随 nav2 自带）。
+- 命令:`./save_pcd.sh`保存pcd文件，执行的是fast_lio自带的保存方法，路径也是fast_lio的保存路径
+- 命令:`./save_2dmap.sh`保存pgm文件，保存路径以及保存topic均要在该文件中修改
+- 命令：`./save_3dmap.sh`保存bt或者ot文件，该命令只能保存octomap生成的三维栅格图，同样需要在命令文件中修改保存路径
 
 3.3 -- 导航
 
@@ -138,17 +111,11 @@ map_file_path: "maps/test.pcd"
 
 `./nav.sh`
 
-执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端
-注意，每次启动都要先进行2d pose estimate，大概车在哪个位置，单击后绿色箭头指向MID-360的镭射面
-随后可以进行nav2 goal设定目标地点 这里也可以通过箭头指向最终要朝向的方向
+- 执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端执行`pcl_viewer maps/test.pcd`查看点云情况,确认点云无误后打开 mapper/pcd2pgm/config/pcd.yaml
 
-执行:
 
-`pcl_viewer maps/test.pcd`
-
-查看点云情况,确认点云无误后
-
-打开 mapper/pcd2pgm/config/pcd.yaml
+- 每次启动都要先进行2d pose estimate，大概车在哪个位置，单击后绿色箭头指向MID-360的镭射面
+- 随后可以进行nav2 goal设定目标地点 这里也可以通过箭头指向最终要朝向的方向
 
 设置：
 
@@ -165,7 +132,7 @@ thre_z_min: -0.25            #高度带下沿：离地 0.11m
 偏高只是丢掉矮障碍。详见 `pcd.yaml` 里的注释。
 
 
-打开 mapper/pointcloud_to_laserscan/launch/pointcloud_to_laserscan_launch.py
+打开 `mapper/pointcloud_to_laserscan/launch/pointcloud_to_laserscan_launch.py`
 
 设置：
 
@@ -174,12 +141,7 @@ thre_z_min: -0.25            #高度带下沿：离地 0.11m
 'max_height': 0.35,      # 与thre_z_max 一致
 ```
 
-注意数值和 `thre_z_min`(-0.25)**不相等**，别以为写错了：这里的 z 基准是 `livox_frame`
-（雷达原点），`pcd2pgm` 那边的基准是 IMU，而**雷达原点比 IMU 高 4.412cm**（MID360 手册：
-IMU 在点云坐标系下 z=-44.12mm），所以同一个物理高度带在 `livox_frame` 里数值要更负 4.4cm。
-
-
-打开 driver/serial_node/launch/serial_comm.launch.py
+`打开 driver/serial_node/launch/serial_comm.launch.py`
 
 自行设置串口和波特率,由于学艺不精，无法做到精准定位，因此这两个可以看成倍率
 
@@ -188,8 +150,11 @@ IMU 在点云坐标系下 z=-44.12mm），所以同一个物理高度带在 `liv
 {'angular_scale': 500.0},   # 转向速度倍率
 ```
 
+![image-20260927203417255](/home/orangepi/ros2_mid360_slam/mid-360-config.png)
 
-打开 registration/icp_registration/config/icp.yaml
+
+
+打开 `registration/icp_registration/config/icp.yaml`
 
 设置:
 
