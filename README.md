@@ -165,16 +165,54 @@ thre_z_min: -0.25            #高度带下沿：离地 0.11m
 
 `打开 driver/serial_node/launch/serial_comm.launch.py`
 
-自行设置串口和波特率,由于学艺不精，无法做到精准定位，因此这两个可以看成倍率
+自行设置串口和波特率。由于学艺不精，无法做到精准定位，因此这几个可以看成倍率
+（严格说它们不是"标定"，而是 **ROS 速度 → MCU 整数** 的换算）:
 
-```
-{'linear_scale': 5000.0},     # 前后速度倍率
-{'angular_scale': 500.0},   # 转向速度倍率
-```
+| 参数 | 值 | 管的轴 | 说明 |
+|------|-----|--------|------|
+| `linear_scale` | `980.0` | Vx / Vy | 0.26 m/s × 980 ≈ 255，正好压在饱和线 |
+| `angular_scale` | `320.0` | Vw | 0.8 rad/s × 320 ≈ 256，正好压在饱和线 |
+| `speed_scale` | `0.5` | 所有轴 | 最后再乘一次的全局半速 |
+
+下发字节 = `clamp(v × scale, ±255) × speed_scale`。**`v × scale` 一超过 255 就饱和**：
+超过饱和线以后，再大的速度指令发出去也是同一个字节，底盘只剩"全速 / 停"两档，
+中间速度全丢。取 980 / 320 是让导航的最大速度刚好落在饱和点上，有两个好处：
+
+- 最大速度的字节数（`255 × 0.5 = 127`）和旧值（`5000` / `500`）**完全一样**，物理最高速没变；
+- 饱和点从旧值的 0.051 m/s 抬到 0.26 m/s，**饱和线以下的速度恢复成比例控制**。
+
+`Vy` 和 `Vx` 共用同一个 `linear_scale`（MCU 三轴同一单位），所以标定过 `Vy` 的**方向**
+就够了，倍率不用单独再标 —— 方向对、倍率一致，横向才会和前后一样细腻。
 
 ![image-20260927203417255](./mid-360-config.png)
 
 
+
+#### 全向移动（麦克纳姆轮）：Nav2 要配套改
+
+底盘是麦轮，MCU 走的是 **3 轴协议**（`Vx` / `Vy` / `Vw`，6 字节 payload），横向本来就能动。
+但 **Nav2 出厂默认按差速底盘配**（`max_vel_y: 0.0`），等于把横向锁死了。
+两边要一起改才有效，**只改一边的症状都是"横向不动"，而且不报错**，最容易查成"底盘的问题"。
+
+共 4 处，改完要 `colcon build`：
+
+| # | 文件 / 位置 | 改动 | 不改会怎样 |
+|---|------------|------|-----------|
+| 1 | `serial_comm.launch.py` 的 `linear_scale` / `angular_scale` | `5000/500` → `980/320` | 横向只能"全速/停"两档（饱和，见上一节） |
+| 2 | `nav2_params.yaml` → `controller_server` `FollowPath` | `max_vel_y: 0.2`、`min_vel_y: -0.2`、`acc_lim_y: 0.4`、`decel_lim_y: -0.4`、`vy_samples: 10`、`max_speed_xy: 0.35` | 横向根本不动 |
+| 3 | `nav2_params.yaml` → `velocity_smoother` | `max/min_velocity` 与 `max_accel/max_decel` 的 **y 分量**由 `0` 改为 `±0.2` / `±0.4` | **隐性卡点**：横向上游放开了，这里又乘一次 0，症状和第 2 条一模一样 |
+| 4 | `nav2_params.yaml` → `controller_server` `min_y_velocity_threshold` | `0.5` → `0.001` | 控制器永远认为车没有横向运动 |
+
+第 2 条里 `max_speed_xy` 必须是 **x、y 的合成上限**：DWB 的 `XYThetaIterator` 会按
+`vmag > max_speed_xy` 把速度样本直接丢掉，所以它至少要 ≥ `√(max_vel_x² + max_vel_y²)`
+= `√(0.26² + 0.2²) ≈ 0.328`，否则"斜着走"的样本全被判无效，横向依旧发不出去（也不报错）。
+
+关于第 4 条：`min_y_velocity_threshold` 只作用在**里程计 twist** 上
+（`controller_server` 的 `getThresholdedTwist(odom_sub_->getTwist())`，用来判断"是否停下"），
+**不参与下发指令**，所以它不是横向动不了的原因；但原来 `0.5` 比实际横向速度（0.2）还大，
+会让控制器一直认为车没有横移，一并改成正常小值。
+
+另外 `robot_radius: 0.15` 不用动 —— 圆形轮廓对全向底盘反而比差速的车体轮廓更合适。
 
 打开 `registration/icp_registration/config/icp.yaml`
 

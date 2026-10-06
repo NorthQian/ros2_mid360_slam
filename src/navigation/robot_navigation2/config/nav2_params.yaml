@@ -114,7 +114,10 @@ controller_server:
     use_sim_time: False
     controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
+    # 这个阈值只作用在里程计 twist 上(getThresholdedTwist)，用于判断"是否停下"，
+    # 不参与下发指令，所以它不是横向能不能动的原因；但 0.5 比实际横向速度(0.2)还大，
+    # 会让控制器永远认为车没有横向运动。改成正常的小值。
+    min_y_velocity_threshold: 0.001
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugin: "progress_checker"
@@ -142,23 +145,32 @@ controller_server:
       plugin: "dwb_core::DWBLocalPlanner"
       debug_trajectory_details: True
       min_vel_x: 0.0
-      min_vel_y: 0.0
+      # —— 全向(麦克纳姆轮)配置 ——
+      # 底盘是麦轮，MCU 走 3 轴协议(Vx/Vy/Vw)，横向本来就能动；之前这里全是 0，
+      # 等于把 nav2 锁成差速底盘，Vy 永远发 0，过窄处只能"转-走-转"。
+      min_vel_y: -0.2
       max_vel_x: 0.26
-      max_vel_y: 0.0
+      max_vel_y: 0.2
       max_vel_theta: 0.8
       min_speed_xy: 0.0
-      max_speed_xy: 0.26
+      # 必须 >= sqrt(max_vel_x^2 + max_vel_y^2) = sqrt(0.26^2+0.2^2) ≈ 0.328。
+      # 否则 DWB 的 XYThetaIterator 会把「斜着走」的样本按 vmag > max_speed_xy
+      # 直接丢掉，横向速度发不出去而且不报错。
+      max_speed_xy: 0.35
       min_speed_theta: 0.0
       # Add high threshold velocity for turtlebot 3 issue.
       # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
       acc_lim_x: 2.5
-      acc_lim_y: 0.0
+      # y 轴的加/减速上限。为 0 时 standard_traj_generator 的 computeNewVelocity
+      # 会把 y 分量永远投影成 0，效果和 max_vel_y=0 一样，是隐性卡点。
+      acc_lim_y: 0.4
       acc_lim_theta: 3.2
       decel_lim_x: -2.5
-      decel_lim_y: 0.0
+      decel_lim_y: -0.4
       decel_lim_theta: -3.2
       vx_samples: 20
-      vy_samples: 5
+      # y 通道放开后要够采样密度，5 太稀，横向速度会一跳一跳的
+      vy_samples: 10
       vtheta_samples: 20
       sim_time: 1.7
       linear_granularity: 0.05
@@ -340,10 +352,13 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.26, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    # 顺序是 [x, y, theta]。y 通道的三个值原本都是 0，velocity_smoother 会把
+    # controller_server 发来的 vy 再乘一次 0 —— 只改 FollowPath 不改这里，
+    # 症状完全一样(横向还是不动)，是最容易漏的一处。
+    max_velocity: [0.26, 0.2, 1.0]
+    min_velocity: [-0.26, -0.2, -1.0]
+    max_accel: [2.5, 0.4, 3.2]
+    max_decel: [-2.5, -0.4, -3.2]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
