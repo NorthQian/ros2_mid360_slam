@@ -47,6 +47,15 @@ registration:    定位算法
     icp_registration  --- 使用icp进行定位
 
 
+robot：  机器人模型描述
+
+    robot --- URDF 模型(robot.urdf) + robot_state_publisher，负责发布
+              /robot_description 以及 base_link -> livox_frame 这段 TF。
+              nav.sh 启动时第一个拉起它，且不带 rviz（display.launch.py 的
+              use_rviz 默认 false，想单独看模型用 use_rviz:=true）。
+              —— 这段 TF 目前有个重复发布的已知问题，详见文末「其他」一节
+
+
  **2、编译** 
 
 `colcon build --symlink-install --cmake-args   -DROS_EDITION=ROS2   -DHUMBLE_ROS=humble `
@@ -111,6 +120,19 @@ map_file_path: "maps/test.pcd"
 
 `./nav.sh`
 
+`nav.sh` 按固定顺序拉起 9 个 launch，**第一条是 `ros2 launch robot display.launch.py`**
+（机器人模型，不带 rviz），它先把 TF 树发出来，等 2 秒再起后面 8 个节点，避免后启动的
+节点一开始找不到 TF。其余 8 条顺序为：驱动 → FAST-LIO → 串口底盘 → 点云转2D扫描 →
+octomap → pcd2pgm → ICP 配准 → Nav2。
+
+所有节点后台运行，日志在 `log/nav_1.log` ~ `log/nav_9.log`，**编号就是上面的启动顺序**
+（比如 `log/nav_1.log` 是机器人模型，`log/nav_8.log` 是 ICP 配准）。排查问题先看这几个日志。
+
+`nav.sh` 开头会自动 `pkill` 上一轮的残留节点，其中 `robot_state_publisher` 和
+`joint_state_publisher` 是单独列的 —— 因为 `ros2 launch` 被 SIGKILL 后子进程会变成孤儿，
+光靠 `pkill -f 'ros2 launch'` 收不掉。手动清理用 `./kill_ros.sh`（先 SIGTERM 再补 SIGKILL，
+`--list` 只列出不杀）。
+
 - 执行完3.1建图后，会在工作空间的 maps/ 目录下生成 test.pcd，可以通过在当前目录打开终端执行`pcl_viewer maps/test.pcd`查看点云情况,确认点云无误后打开 mapper/pcd2pgm/config/pcd.yaml
 
 
@@ -164,7 +186,31 @@ map_frame_id: "map"
 odom_frame_id: "odom"
 laser_frame_id: "base_link"
 pointcloud_topic: "/livox/lidar"
+yaw_offset: 6                #步数(整数！)，不是角度
+yaw_resolution: 30.0         #角度(度)
 ```
+
+**`yaw_offset` 和 `yaw_resolution` 不是一回事，别混：**
+
+- `yaw_resolution` 是**角度步长**（度），代码里会转成弧度。
+- `yaw_offset` 是**每个方向搜几步**（整数），它直接当循环边界用：
+  `for (int k = -yaw_offset; k <= yaw_offset; k++)`，候选角度 = `起始yaw + k * yaw_resolution`。
+- 所以总搜索范围 = **±(yaw_offset × yaw_resolution)**。默认 `6 × 30° = ±180°`，全向覆盖，
+  候选数 = `3 × 3 × (2×6+1) = 117`（XY 各 ±`xy_offset`，默认 0.2m）。
+- 嫌启动慢就减小：`6`→±180°(117 个候选)、`3`→±90°(63 个)、`1`→±30°(27 个)。
+  只在第一帧做一次，慢一点可以接受。
+
+> **踩过的坑（已修，写在这防止再犯）**：这里曾经写成 `yaw_offset: 30.0`，代码里又加了
+> `* M_PI / 180.0` 把它当角度转成弧度 → 值变成 0.5236，塞进 `int k` 被截断成 0，
+> 循环只跑 `k=0` 一次，**yaw 粗搜索完全失效**。后果是 `map -> odom` 的 yaw 只剩 ICP
+> 从 0° 局部收敛的结果，收敛到错误局部极小值时，rviz 的 map 视图里车头就是歪的。
+> 现在参数类型在代码里改成了 `int`，所以要写成**整数**（`6`），写成 `6.0` 会因参数类型
+> 不符直接把节点拉不起来 —— 这是刻意的，让"步数还是角度"在类型层面无法含糊。
+
+另外注意 `icp_registration.cpp` 里 **ICP 失败是静默回退**的（日志打 `ICP failed`，然后拿
+initial_pose 当结果继续发 `map -> odom`）。所以别只看进程还活着就以为配准成功了，
+启动后要确认日志里有正常的 `score:` 值。命中不了就检查 `initial_pose`（默认全 0，
+它的 yaw 是**弧度**）和机器人的实际起始位置是否对得上。
 
  **其他** 
 
@@ -182,7 +228,53 @@ ros2有很多topic，刚开始学时被弄的头晕了，网上找来找去，�
 
 对于mid360的点云数据来说，还需要进行
 
-/base_link -> livox_frame 的tf变换，是由 pointcloud_to_laserscan 算法发布的
+/base_link -> livox_frame 的tf变换。**权威的发布者现在是 robot 包的 `robot_state_publisher`**
+（即 nav.sh 第一个拉起的 display.launch.py），取 `robot.urdf` 里 SolidWorks 导出的真实安装
+尺寸 x=0.02, y=-0.095, z=0.3228。
+
+> ⚠ **已知问题：这段 TF 目前有两个发布者，需要收敛成一个（代码还没改）。**
+> `mapper/pointcloud_to_laserscan/launch/pointcloud_to_laserscan_launch.py:13-22` 里还有一个
+> `static_transform_publisher`，也在发 `base_link -> livox_frame`，但值是**全 0**。
+> tf2 对同一对父子帧的两个发布者是互相覆盖的（谁时间戳新谁生效），结果 `livox_frame` 的
+> 位置会在两者间反复跳变（z 差 32cm、y 差 9.5cm）。Nav2 的 costmap 用
+> `robot_base_frame: base_link` 去看 `/scan`，障碍物会横向抖 9.5cm。
+> **建议删掉 pointcloud_to_laserscan 里那个 static**（URDF 的值是真实几何，更准）；
+> `min_height`/`max_height` 的基准是 `livox_frame`，删哪个都不影响这两个参数。
+> 注意这个问题是**在 nav.sh 里加入 robot 模型之后才出现的**，之前只有 static 一个发布者。
+
+#### 关于 rviz：为什么两个窗口里机器人朝向不一样
+
+nav.sh 会起**两个 rviz**：fast_lio 的（`src/lio/FAST_LIO/rviz/fastlio.rviz`）和
+robot_navigation2 的（`src/navigation/robot_navigation2/rviz/nav2_view.rviz`）。
+两者 **Fixed Frame 不同**，看到的机器人朝向自然不同：
+
+| 窗口 | Fixed Frame | TF 链 | 看到的是 |
+|------|-------------|-------|----------|
+| fast_lio（`fastlio.rviz`） | `odom` | `odom -> base_link` | 里程计原始朝向（相对开机起点转了多少） |
+| nav2（`nav2_view.rviz`） | `map` | `map -> odom -> base_link` | 在 PCD 地图里的全局朝向 |
+
+两者的差别**正好等于 ICP 估出的 `map -> odom` 里那部分 yaw**。这是正常的，不是 robot 模型
+或 TF 配置的问题 —— `odom` 系的原点是 FAST-LIO 开机那一刻的位姿，`map` 系的原点朝向由先验
+地图 `maps/test.pcd` 决定，两者差多少全靠 ICP 对齐。
+
+**判断定位对不对要看 nav2 那个窗口**（看车头相对地图墙面）。如果那边明显歪，是 ICP 配准的
+问题，去调 `icp.yaml` 的 `yaw_offset` / `initial_pose`，改 rviz 是治不好的。
+
+#### rviz 里 RobotModel 不显示（也不报错）
+
+rviz 的 RobotModel display 默认用 **Volatile** 订阅 `/robot_description`，而
+`robot_state_publisher` 是 **transient_local（latched）**发布的。rviz 比它晚启动时，
+Volatile 订阅者收不到那条已经发过的消息，模型就是空的，而且**不会报错**，很容易误判成模型
+或 TF 有问题。必须把 RobotModel → Description Topic 的 `Durability Policy` 改成
+**Transient Local**。
+
+- `fastlio.rviz` 已改好。
+- nav2 原本用的配置在 `/opt/ros/humble/share/nav2_bringup/rviz/`（系统目录，别直接改），
+  已拷到 `src/navigation/robot_navigation2/rviz/nav2_view.rviz` 改好（顺带把原本
+  `Enabled: false` 的 RobotModel 打开了），`navigation2.launch.py` 已指向本包这份。
+- 改 rviz 配置后记得 **`colcon build --packages-select robot_navigation2`** —— `rviz/` 目录
+  是 CMake 装进 share 的，不像 launch 文件有 symlink 会立即生效。
+- 在 rviz 界面里手动调完，要用 `File → Save Config As` 存回项目里的那份，否则下次启动还原。
 
 
 如果需要用octomap进行点云处理，则需要将octomap_server_launch.py中的
@@ -194,7 +286,7 @@ DeclareLaunchArgument('pointcloud_max_height', default_value='0.35'),    #机器
 
 这两句按照实际情况更改。它们的 z 基准是 `frame_id`（默认 `odom`，和 PCD 一样是建图起始的
 IMU 原点），所以参数值应当和 **`thre_z_min`(-0.25) 同一个基准**，而不是和
-`pointcloud_to_laserscan` 的 `min_height`(-0.21) 一致 —— 后者基准是 `livox_frame`，差 4.4cm。
+`pointcloud_to_laserscan` 的 `min_height`(-0.29) 一致 —— 后者基准是 `livox_frame`，差 4.4cm。
 
 两者的用途也不同，不必强行取同一个值：`pcd2pgm` 是投成二维栅格（投影后地面残点会糊成实心块，
 所以地面必须切干净），`octomap` 是三维栅格（切掉地面是为了不把地面标成占据）。
