@@ -69,9 +69,17 @@ IcpNode::IcpNode(const rclcpp::NodeOptions &options)
       this->declare_parameter("laser_frame_id", std::string("laser"));
   thresh_ = this->declare_parameter("thresh", 0.15);
   xy_offset_ = this->declare_parameter("xy_offset", 0.2);
-  yaw_offset_ = this->declare_parameter("yaw_offset", 30.0) * M_PI / 180.0;
+  // yaw_offset 是"每个方向搜索的步数"(整数)，不是角度！
+  // 它直接用作 multiAlignSync 里 for (int k = -yaw_offset_; ...) 的循环边界，
+  // 实际搜索到的角度是 k * yaw_resolution_。
+  // 历史坑：这里曾写成 declare_parameter("yaw_offset", 30.0) * M_PI / 180.0，
+  // 值变成 0.5236 弧度后塞进 int k 被截断为 0，循环只跑 k=0 一次，
+  // yaw 粗搜索完全失效，map->odom 的 yaw 只剩 ICP 从 0° 局部收敛的结果。
+  // 参数类型定为 int 可从根本上杜绝这种单位混用。
+  yaw_offset_ = static_cast<int>(this->declare_parameter("yaw_offset", 6));
+  // yaw_resolution 才是角度，配置里用度，这里转成弧度
   yaw_resolution_ =
-      this->declare_parameter("yaw_resolution", 10.0) * M_PI / 180.0;
+      this->declare_parameter("yaw_resolution", 30.0) * M_PI / 180.0;
   std::vector<double> initial_pose_vec = this->declare_parameter(
       "initial_pose", std::vector<double>{0, 0, 0, 0, 0, 0});
   try {
@@ -294,6 +302,8 @@ Eigen::Matrix4d IcpNode::multiAlignSync(PointCloudXYZI::Ptr source,
   RCLCPP_INFO(this->get_logger(), "initial guess: %f, %f, %f, %f, %f, %f",
               xyz(0), xyz(1), xyz(2), rpy(0), rpy(1), rpy(2));
 
+  // 候选数 = 3(i) * 3(j) * (2*yaw_offset_+1)。yaw_offset_ 是步数(见构造函数)，
+  // 候选 yaw = rpy(2) + k * yaw_resolution_，总覆盖 ±(yaw_offset_ * yaw_resolution_)。
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {
       for (int k = -yaw_offset_; k <= yaw_offset_; k++) {

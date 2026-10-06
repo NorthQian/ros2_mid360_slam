@@ -9,7 +9,11 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 def generate_launch_description():
     fishbot_navigation2_dir = get_package_share_directory('robot_navigation2')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
-    rviz_config_dir = os.path.join(nav2_bringup_dir, 'rviz', 'nav2_default_view.rviz')
+    # 用本包内的配置(而非 nav2_bringup 自带的)：
+    # RobotModel display 已打开，且 Description Topic 改成 Transient Local，
+    # 否则 rviz 比 robot_state_publisher 晚启动，收不到 latched 的 /robot_description
+    rviz_config_dir = os.path.join(
+        fishbot_navigation2_dir, 'rviz', 'nav2_view.rviz')
 
     use_sim_time = launch.substitutions.LaunchConfiguration('use_sim_time', default='False')
     nav2_param_path = launch.substitutions.LaunchConfiguration(

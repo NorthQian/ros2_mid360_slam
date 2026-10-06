@@ -79,8 +79,8 @@ private:
   double score_;
   double thresh_;
   double xy_offset_;
-  double yaw_offset_;
-  double yaw_resolution_;
+  int yaw_offset_;  // 步数(整数)，不是角度；角度 = k * yaw_resolution_
+  double yaw_resolution_;  // 弧度
   geometry_msgs::msg::Pose initial_pose_;
 
   bool is_ready_;
