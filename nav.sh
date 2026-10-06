@@ -1,7 +1,6 @@
 #!/bin/bash
-# 无头(Headless)启动导航链路
-# Jetson 无屏幕：所有节点后台运行，日志写入 log/。rviz 请在你自己的电脑上开。
-# 链路(作者原设计): 驱动 -> FAST-LIO(odom->base_link) -> 串口底盘 -> 点云转2D扫描
+# 链路(作者原设计): robot模型(base_link->livox_frame, use_rviz 默认 false, 不显示 rviz)
+#       -> 驱动 -> FAST-LIO(odom->base_link) -> 串口底盘 -> 点云转2D扫描
 #       -> pcd2pgm(读 maps/test.pcd 发静态 /map, transient_local)
 #       -> ICP 配准(定位, 发 map->odom) -> Nav2(use_map_topic:true 订阅 /map)
 
@@ -20,6 +19,9 @@ pkill -9 -f 'pointcloud_to_laserscan_node' 2>/dev/null
 pkill -9 -f 'pcd2pgm_node' 2>/dev/null
 pkill -9 -f 'icp_registration' 2>/dev/null
 pkill -9 -f 'nav2' 2>/dev/null
+# robot 包 display.launch.py(RobotModel + 关节状态)；ros2 launch 被 SIGKILL 后子进程会变孤儿，必须单独收
+pkill -9 -f 'robot_state_publisher' 2>/dev/null
+pkill -9 -f 'joint_state_publisher' 2>/dev/null
 sleep 1
 # ==================================================
 
@@ -27,6 +29,7 @@ LOG_DIR="$(pwd)/log"
 mkdir -p "$LOG_DIR"
 
 cmds=(
+	"ros2 launch robot display.launch.py"
 	"ros2 launch livox_ros_driver2 msg_MID360_launch.py"
 	"ros2 launch fast_lio mapping.launch.py rviz:=true"
 	"ros2 launch serial_node serial_comm.launch.py"
@@ -47,7 +50,12 @@ do
 	setsid bash -c "cd $(pwd); source install/setup.bash; export ROS_DOMAIN_ID=0; $cmd" \
 		> "$LOG" 2>&1 &
 	PIDS+=($!)
-	sleep 0.3
+	# 第一条(robot 模型)多等一会儿，让 robot_state_publisher 先发 TF 再起其余节点
+	if [ "$i" -eq 0 ]; then
+		sleep 2
+	else
+		sleep 0.3
+	fi
 done
 
 echo

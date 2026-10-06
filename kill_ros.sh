@@ -39,7 +39,9 @@ PATTERNS=(
 	'ros2 bag'
 	'ros2 param'
 	ros2_control_node
+	# ---- robot 包 display.launch.py (nav.sh 第一条) ----
 	robot_state_publisher
+	joint_state_publisher
 	# ---- nav2 全家桶 ----
 	nav2_
 	nav2_amcl
